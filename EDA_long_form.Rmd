@@ -1,0 +1,655 @@
+---
+title: 'EDA: Long Form!'
+author: "Data Science (STAT 301-1)"
+subtitle: Anna Wagman
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    highlight: tango
+---
+
+```{r setup, include=FALSE, message=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction:
+As a subscriber to Hulu, AmazonPrime, and Disney+, I very excited to explore the similarities and differences between the three streaming services. In my EDA, I will explore the variables contained inside the individual data sets, and then compare specific variables across all three. Which service offers the most options? Does it differ depending on Movies vs TV Shows? Do Hulu, AmazonPrime, and Disney+ offer any of the same titles? How many? Which of these these services offer the most international streaming? In which countries? These are some of the questions I will be exploring and depicting throughout my Six Visualizations. The three data sets provide information on the titles available on Hulu, AmazonPrime, and Disney+ respectively. All three data sets include the same variables such as title, type, genre, rating, director, cast...etc
+
+### Data Sources:
+<https://www.kaggle.com/shivamb/hulu-movies-and-tv-shows/version/1.> <br>
+<https://www.kaggle.com/shivamb/amazon-prime-movies-and-tv-shows> <br>
+<https://www.kaggle.com/shivamb/disney-movies-and-tv-shows> <br>
+
+### Data Cleaning: 
+In my initial data cleaning, I renamed the column var = "listed_in" -> to "genre" for all three data sets and I removed the last column var = "description" that gave a lengthy description of the plot for each. Throughout my EDA, I use functions such as as.numeric, extract_numeric, round()...and many more in order to clean my data. For example, to work with var = "duration", I had to parse the numerical value from "duration" for each separate type = "Movie" and type = "TV Show". For type = "Movie", duration is given in minutes and so I used the "as.numeric()" function. For type = "TV Show", I had to extract the numerical value from duration given by "# Seasons" where '#' is an integer. I used the function "extract_numeric(duration)". I cleaned and recoded each variable in many different ways for each visualization, which is specifically outlined in my "data_cleaning.R" & "data_cleaning.Rmd" files which can be found in the main foler EDA_Wagman.
+
+
+```{r, include = FALSE, message=FALSE, warning = FALSE}
+#Load Packages
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(ggplot2)
+library(RColorBrewer)
+library(lubridate)
+library(cowplot)
+library(viridis)
+library(plyr)
+library(purrr)
+library(dbplyr)
+library(ggmap)
+
+
+#Load Data sets
+hulu <- read_csv("data/processed/hulu_titles.csv")
+disney <- read_csv("data/processed/disney_plus_titles.csv")
+amazon <- read_csv("data/processed/amazon_prime_titles.csv")
+```
+
+
+# Visualization 1: Total TV Shows and Movies
+### Q1. Which service has the most content? Is there a large disparity?
+
+```{r, message = FALSE, include = FALSE, warning=FALSE}
+#calculate the total of TV shows and Movies in each individual service
+#make joint tibble of each service and total titles
+
+#Hulu Movies + TV show
+Hulu_MoviesvTV <- count(hulu, vars = "type")
+
+#Hulu: total titles 
+Hulu_Total <- sum(Hulu_MoviesvTV$freq)
+Hulu_Total
+
+#Disney+ Movies + TV show 
+Disney_MoviesvTV <- count(disney, vars = "type")
+
+#Disney+: total titles
+Disney_Total <- sum(Disney_MoviesvTV$freq)
+Disney_Total
+
+#AmazonPrime Movies + TV shows
+Amazon_MoviesvTV <- count(amazon, vars = "type")
+
+#AmazonPrime: total titles
+Amazon_Total <- sum(Amazon_MoviesvTV$freq)
+Amazon_Total
+
+#joint tibble with each service and the number of titles on each
+TOTAL_COMPARISON <- tibble(
+  service = c("Hulu", "Disney+", "Amazon Prime"), 
+  total = c(Hulu_Total, Disney_Total, Amazon_Total)
+  )
+```
+
+```{r, message = FALSE, include = FALSE, warning = FALSE}
+##PLOT 1: Compare the total number of titles available on each streaming service
+
+total_titles_plot <- ggplot(
+  data = TOTAL_COMPARISON, #total titles per service
+  aes(x = "", y = total, fill = service)) + #color by service
+  geom_bar(stat = "identity") + 
+  coord_polar("y", start = 0) + #pie chart
+  geom_text(
+    aes(label = total), #label amount of each
+    position = position_stack(vjust = .5) #adjust labels
+  ) +
+  labs( #axes labels
+    title = "Total titles on Hulu, Disney+, and AmazonPrime",
+    x = NULL
+  ) +
+  scale_fill_manual(values = c("#FC6CB9", "#1EC2F9", "#5BDC70")) + #set color with specific HTML color codes
+  theme_minimal()
+```
+
+```{r, message=FALSE, warning = FALSE}
+#plot 1
+total_titles_plot
+```
+
+
+
+
+
+# Visualization 2: Movies vs TV Shows on each service
+### Q2. What is the distribution of Movies vs TV shows per service? 
+
+```{r, include = FALSE, message = FALSE, warning = FALSE}
+#Hulu Movies:
+Hulu_Movies <- count(hulu, vars = "type")
+Hulu_Movies_n <- as.numeric(Hulu_Movies[1, 2]) #extract first 2 columns
+Hulu_Movies_n
+
+#Disney+ Movies:
+Disney_Movies <- count(disney, vars = "type")
+Disney_Movies_n <- as.numeric(Disney_Movies[1, 2]) #extract first 2 columns
+Disney_Movies_n
+
+#AmazonPrime Movies
+Amazon_Movies <- count(amazon, vars = "type")
+Amazon_Movies_n <- as.numeric(Amazon_Movies[1, 2]) #extract first 2 columns
+Amazon_Movies_n
+
+
+##create tibble of total movies on each
+Total_Movies <- tibble(
+  service = c("Hulu", "Disney+", "Amazon Prime"), 
+  total = c(Hulu_Movies_n, Disney_Movies_n, Amazon_Movies_n) 
+  )
+```
+
+
+```{r, message=FALSE, include=FALSE, warning = FALSE}
+##plot movies relative to each other
+total_movies_plot <- ggplot(
+  data = Total_Movies, #joint tibble movies on each
+  aes(x = service, y = total)) + 
+  geom_col(fill = c("#24C833", "#3A69C6", "#EA3BAA")) + #bar chart
+  labs( #label axes
+    title = "Number of Movies",
+    y = "amount"
+  ) +
+  theme_minimal()
+```
+
+```{r, message=FALSE, include=FALSE, warning = FALSE}
+#hulu: total TV Shows
+hulu_TV <- hulu %>%
+  filter(type == "TV Show") %>%
+  group_by("title") %>%
+  count()
+
+#get number of rows = total
+hulu_TV_total <- nrow(hulu_TV)
+
+#disney: total TV Shows
+disney_TV <- disney %>%
+  filter(type == "TV Show") %>%
+  group_by("title") %>%
+  count() 
+
+#number of rows
+disney_TV_total <- nrow(disney_TV)
+
+#amazon: total TV Shows
+amazon_TV <- amazon %>%
+  filter(type == "TV Show") %>%
+  group_by("title") %>%
+  count() 
+
+#number of rows
+amazon_TV_total <- nrow(amazon_TV)
+```
+
+```{r, message=FALSE, include = FALSE, warning = FALSE}
+# create joint tibble of TV Shows on each
+total_TVShows <- tibble(
+  service = c("Hulu", "Disney+", "Amazon Prime"), 
+  total = c(hulu_TV_total, disney_TV_total, amazon_TV_total)
+  )
+
+#plot TV Shows together
+total_TVShows_plot <- ggplot(
+  data = total_TVShows, 
+  aes(x = service, y = total)) + 
+  geom_col(fill = c("#5BDC70", "#1EC2F9", "#FC6CB9")) + #set colors
+  labs(
+    title = "Number of TV Shows",
+    y = "amount"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+#plot side by side: Movies vs TV
+plot_grid(total_movies_plot, total_TVShows_plot)
+```
+
+
+### 2b: Percentage of Movies vs TV Show on each
+
+```{r, warning = FALSE, include = FALSE, message = FALSE}
+#hulu percent break down
+Hulu_Percentage_Movie <- (Hulu_Movies_n/Hulu_Total)*100 #divide by total and mult x 100
+Hulu_Percentage_TV <- (hulu_TV_total/Hulu_Total)*100 #divide by total and mult x 100
+
+
+Hulu_percent_tibble <- tibble(
+  type = c("Movie", "TV Show"), 
+  total = c(Hulu_Percentage_Movie, Hulu_Percentage_TV)
+  )
+
+Hulu_percent_plot <- ggplot(
+  data = Hulu_percent_tibble, 
+  aes(x = "", y = total, fill = type)) + #color by type: Movie vs TV
+  geom_bar(stat = "identity") +
+  coord_polar("y") + #pie chart
+  labs(
+    title = "Hulu: Movies vs TV",
+    x = NULL
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#B567DC", "#F0E61F")) +
+  geom_text(
+    aes(label = round(total)), #label each (min) 
+    position = position_stack(vjust = .5) #adjust labels
+  )
+
+
+#amazon percent break down
+Amazon_Percentage_Movie <- (Amazon_Movies_n/Amazon_Total)*100
+Amazon_Percentage_TV <- (amazon_TV_total/Amazon_Total)*100 
+
+
+Amazon_percent_tibble <- tibble(
+  type = c("Movie", "TV Show"), 
+  total = c(Amazon_Percentage_Movie, Amazon_Percentage_TV)
+  )
+
+Amazon_percent_plot <- ggplot(
+  data = Amazon_percent_tibble, 
+  aes(x = "", y = total, fill = type)) + #color by type: Movie vs TV
+  geom_bar(stat = "identity") +
+  coord_polar("y") + #pie chart
+  labs(
+    title = "AmazonPrime: Movies vs TV",
+    x = NULL
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#B567DC", "#F0E61F")) +
+  geom_text(
+    aes(label = round(total)), #label each (min) 
+    position = position_stack(vjust = .5) #adjust labels
+  )
+
+#disney percent break down
+Disney_Percentage_Movie <- (Disney_Movies_n/Disney_Total)*100
+Disney_Percentage_TV <- (disney_TV_total/Disney_Total)*100 
+
+
+Disney_percent_tibble <- tibble(
+  type = c("Movie", "TV Show"), 
+  total = c(Disney_Percentage_Movie, Disney_Percentage_TV)
+  )
+
+Disney_percent_plot <- ggplot(
+  data = Disney_percent_tibble, 
+  aes(x = "", y = total, fill = type)) + #color by type: Movie vs TV
+  geom_bar(stat = "identity") +
+  coord_polar("y") + #pie chart
+  labs(
+    title = "Disney+: Movies vs TV",
+    x = NULL
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("#B567DC", "#F0E61F")) +
+  geom_text(
+    aes(label = round(total)), #label each (min) 
+    position = position_stack(vjust = .5) #adjust labels
+  ) 
+```
+
+
+```{r, warning = FALSE, message = FALSE}
+#plot percent Movie v TV of all 3 on one plot
+plot_grid(Hulu_percent_plot, Amazon_percent_plot, Disney_percent_plot)
+```
+
+
+
+# Visualization 3: Movie Duration distribution
+### Q3. Are movies on average the same length per service? 
+
+```{r, message=FALSE, include=FALSE, warning = FALSE}
+#convert duration to minutes for each service
+
+#hulu movie minutes
+hulu_movie_length <- hulu %>%
+  select(type, duration, title) %>%
+  filter(type == "Movie") %>% #filter by only movies
+  drop_na() %>%
+  #parse duration into an int:
+  mutate(hulu_minutes = parse_number(duration)) #new var hulu_minutes
+
+
+#amazon movie minutes
+amazon_movie_length <- amazon %>%
+  select(type, duration, title) %>%
+  filter(type == "Movie") %>% #filter by only movies
+  mutate(amazon_minutes = parse_number(duration)) #parse duration into an int
+
+#disney movie minutes
+disney_movie_length <- disney %>%
+  select(type, duration, title) %>% 
+  filter(type == "Movie") %>% #only movies
+  drop_na() %>%
+  mutate(disney_minutes = parse_number(duration)) #parse duration into an int
+```
+
+
+```{r, message = FALSE, include = FALSE, warning = FALSE}
+#hulu movie duration distribution
+hulu_duration_plot <- ggplot(
+  data = hulu_movie_length, 
+  mapping = aes(x = hulu_minutes)) +
+  #histogram
+  geom_histogram(binwidth = 10, #margin in minutes for each bar
+                 color = "darkgreen", fill = "lightgreen") + 
+  xlim(40, 200) + #set x-axes limits to scale plot
+  theme_minimal() +
+  labs(
+    title = "Hulu: Average Movie length",
+    x = "Duration in Minutes",
+    y = "Amount of Movies"
+  ) 
+```
+
+
+```{r, message = FALSE, include = FALSE, warning = FALSE}
+#Plot 3b. AmazonPrime Movie Duration distribution
+
+amazon_duration_plot <- ggplot(
+  data = amazon_movie_length, 
+  mapping = aes(x = amazon_minutes)) +
+  #histogram
+  geom_histogram(binwidth = 10, color = "red", fill = "pink") + 
+  xlim(30, 200) + #set x-axes limits
+  theme_minimal() +
+  labs(
+    title = "Average Movie length on AmazonPrime",
+    x = "Duration in Minutes",
+    y = "Amount of Movies"
+  ) 
+```
+
+
+```{r, message = FALSE, warning = FALSE, include = FALSE}
+#Plot 3c. Disney+ movie duration distribution
+
+disney_duration_plot <- ggplot(
+  data = disney_movie_length, 
+  mapping = aes(x = disney_minutes)) +
+  #histogram
+  geom_histogram(binwidth = 10, #set margin for each bar in minutes
+                 color = "darkblue", fill = "lightblue") + #histogram
+  xlim(30, 200) + #set x-axes limits
+  theme_minimal() +
+  labs(
+    title = "Average Movie length on Disney+",
+    x = "Duration in Minutes",
+    y = "Amount of Movies"
+  ) 
+```
+
+
+```{r, message = FALSE, warning=FALSE}
+#plot all three service_duration plots created above on one plot!
+plot_grid(hulu_duration_plot, amazon_duration_plot, disney_duration_plot)
+```
+
+
+
+
+### 3b: Average (mean) of Movies Compared
+
+```{r, message = FALSE, include=FALSE, warning = FALSE}
+#calculate the mean duration each of a movie on each in minutes
+
+#hulu average movie length (min)
+mean_hulu_movies <- mean(hulu_movie_length$hulu_minutes)
+
+#amazon average movie length (min)
+mean_amazon_movies <- mean(amazon_movie_length$amazon_minutes)
+
+#disney average movie length (min)
+mean_disney_movies <- mean(disney_movie_length$disney_minutes)
+
+#create joint tibble of the mean_service for all three
+Movie_Averages <- tibble(
+  service = c("Hulu", "Disney+", "Amazon Prime"), 
+  total = c(mean_hulu_movies, mean_disney_movies, mean_amazon_movies)
+  )
+```
+
+```{r, message = FALSE, include=FALSE, warning = FALSE}
+#create bar plot of "mean movie duration" per service 
+Movie_av_plot <- ggplot(
+  data = Movie_Averages, 
+  aes(x = service, y = total)) + 
+  geom_col(fill = c("#5BDC70", "#1EC2F9", "#FC6CB9")) +
+  labs(
+    title = "Average Movie Length",
+    y = "Average Length (min)"
+  ) +
+  theme_minimal() +
+  geom_text(
+    aes(label = round(total)), #label each (min) 
+    position = position_stack(vjust = .5) #adjust labels
+  ) 
+```
+
+```{r, message = FALSE, warning = FALSE}
+Movie_av_plot
+```
+
+
+
+# Visualization 4: Titles Available on Multiple services
+
+### Q4. Which services have overlap? How many titles do they have in common?
+
+```{r, message = FALSE, include=FALSE, warning = FALSE}
+#select all titles per service
+hulu_titles <- hulu %>%
+  select(title)
+
+amazon_titles <- amazon %>%
+  select(title)
+
+disney_titles <- disney %>%
+  select(title)
+
+```
+
+```{r, message = FALSE, warning = FALSE, include = FALSE}
+# use inner_join between each combination of 2 of the services
+# inner_join will join by "title" and only return titles in both
+
+#hulu and amazon titles compared
+hulu_and_amazon <- inner_join(hulu_titles, amazon_titles) 
+
+#hulu and disney
+disney_and_hulu <- inner_join(hulu_titles, disney_titles) 
+
+#amazon and disney
+amazon_and_disney <- inner_join(amazon_titles, disney_titles) 
+
+#overlap between all three services
+total_total_overlap <- inner_join(hulu_and_amazon, disney_titles)
+```
+
+```{r, warning=FALSE, message=FALSE, include = FALSE}
+#rename columns and join all together:
+
+names(hulu_and_amazon)[names(hulu_and_amazon) == 'title'] <- "hulu_amazon_titles"
+names(disney_and_hulu)[names(disney_and_hulu) == 'title'] <- "disney_hulu_titles"
+names(amazon_and_disney)[names(amazon_and_disney) == 'title'] <- "amazon_disney_titles"
+```
+
+
+```{r, warning=FALSE, message=FALSE, include=FALSE}
+Hulu_Amazon_overlap <- nrow(hulu_and_amazon)
+Disney_Hulu_overlap <- nrow(disney_and_hulu)
+Amazon_Disney_overlap <- nrow(amazon_and_disney)
+
+
+Total_Overlap <- tibble(
+  services = c("Hulu and Amazon", "Disney and Hulu", "Amazon and Disney"),
+  titles_overlap = c(Hulu_Amazon_overlap, Disney_Hulu_overlap, Amazon_Disney_overlap)
+)
+```
+**Total titles availale on multiple services:**
+```{r, warning=FALSE, message=FALSE}
+Total_Overlap
+```
+**Titles availale on all 3 services:**
+
+```{r, warning=FALSE, message=FALSE}
+total_total_overlap
+```
+
+**As you can see, Hulu and AmazonPrime have the most overlap by a significant margin with 221 titles in common. The only title that all 3 services have in common is the movie "10 Things I Hate About You".**
+
+# Visualization 5: Worldwide Streaming
+
+### Q5. Which services offer international streaming? In which countries? How many titles are available in each? 
+
+```{r, message = FALSE, include = FALSE, warning = FALSE}
+# clean data
+amazon_countries <- read_csv("data/processed/amazon_prime_titles.csv")  %>%
+  select(country) %>% ## select the column var = "country"
+  mutate(country = str_split(country,', ')) %>% ##read in multiple countries separated by commas  
+  unnest(country) %>%
+  group_by(country) %>% ##group by country name
+  count() %>% ##count how many titles in each country
+  arrange(desc(freq)) %>% ##order highest to lowest
+  remove_empty() %>%
+  head(20) ##return highest 20
+
+#remove the first row which is country = NA...
+amazon_countries_removeNA <- amazon_countries[-1, ]
+
+#plot amazon countries (without first row = NA)
+amazon_country_plot <- ggplot(amazon_countries_removeNA) +
+  geom_col(fill = "pink", color = "red",
+           aes(y = reorder(country, freq), x = freq)) +
+  labs(
+    title = "Amazon: Titles per Country",
+    x = "Titles Available",
+    y = "Country"
+    ) +
+  geom_label(aes(y = reorder(country,freq), x = freq, label = freq), size = 2) + #label freq per country
+  theme_minimal()
+```
+
+
+```{r, message = FALSE, warning = FALSE, include=FALSE}
+# Disney Countries
+## split by "," for multiple countries
+disney_countries <- read_csv("data/processed/disney_plus_titles.csv") %>%
+  select(country) %>%
+  mutate(country = str_split(country, ', ')) %>% ##read in multiple countries separated by commas 
+  unnest(country) %>%
+  group_by(country) %>% ##group by country
+  count() %>% ##count titles per country
+  arrange(desc(freq)) %>%
+  head(20) ##select highest 20
+
+#remove column country = NA
+disney_removeNA <- disney_countries[-2, ]
+
+#create plot of countries
+disney_country_plot <- ggplot(disney_removeNA) +
+  geom_col(fill = "lightblue", color = "darkblue",
+           aes(y = reorder(country, freq), x = freq)) +
+  labs(
+    title = "Disney+: titles per Country",
+    x = "Titles Available",
+    y = "Country"
+    ) +
+  geom_label(aes(y = reorder(country,freq), x = freq, label = freq), size = 2) + #label freq per country
+  theme_minimal()
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+plot_grid(amazon_country_plot, disney_country_plot)
+```
+<br>
+**Hulu is only Available in the US and UK making for a very uninteresting graph, so I did not include Hulu. As shown above, the US has the most availability by a lot. The US has more titles than all of the other countries combined...**
+
+
+# Visualization 6: Longest runnning TV Shows on each:
+### Q6. What are the longest running TV Shows on each? How many seasons are there?
+
+```{r, warning = FALSE, message=FALSE, include=FALSE}
+# extract type = TV Show
+# extract number from "2 Seasons"
+# arrange descending, select top 10
+
+##hulu tv seasons
+hulu_seasons <- read_csv("data/processed/hulu_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int; use extract_numeric() function
+  arrange(desc(duration)) %>% ## arrange high -> low
+  head(10) %>% ## return highest 10
+  
+  ggplot() +
+  geom_col(fill = "lightgreen", color = "black",
+    aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Hulu: Most TV Seasons",
+    x = "Amount of Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+
+##disney TV Show seasons
+disney_seasons <- read_csv("data/processed/disney_plus_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int
+  arrange(desc(duration)) %>%
+  head(10) %>%
+  
+  ggplot() +
+  geom_col(fill = "lightblue", color = "black",
+    aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Longest Running TV Shows",
+    x = "Disney+: Most TV Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+
+
+##amazon tv seasons
+amazon_seasons <- read_csv("data/processed/amazon_prime_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int
+  arrange(desc(duration)) %>%
+  head(10) 
+  
+amazon_seasons_plot <- ggplot(amazon_seasons) +
+  geom_col(fill = "lightpink", color = "black",
+           aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Amazon: Most TV Seasons",
+    x = "Amount of Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+```
+
+```{r, warning = FALSE, message = FALSE}
+hulu_seasons
+disney_seasons
+amazon_seasons_plot
+```
+
+<br>
+**Hulu and AmazonPrime both have the TV Shows "Survivor" and "America's Top Model", both of which appear in their top 10 longest running shows. Fun fact: Survivor is my favorite TV Show ever and I have seen all 41 Seasons!**
+
+
+
+

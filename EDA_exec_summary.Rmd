@@ -1,0 +1,181 @@
+---
+title: "EDA Executive Summary"
+author: "Data Science Final"
+subtitle: Anna Wagman
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    highlight: tango
+  pdf_document:
+    toc: yes
+---
+
+```{r, include = FALSE, message=FALSE, warning = FALSE}
+#Load packages:
+library(tidyverse)
+library(skimr)
+library(RColorBrewer)
+library(dplyr)
+
+
+#Load Data sets:
+hulu_summary <- read_csv("data/processed/hulu_titles.csv")
+disney_summary <- read_csv("data/processed/disney_plus_titles.csv")
+amazon_summary <- read_csv("data/processed/amazon_prime_titles.csv")
+```
+
+# Introduction:
+My EDA compares and contrasts the titles availale on Hulu, Disney+, and AmazonPrime. I chose to examine data about streaming services because I have always loved and watched a lot of movies. I personally subscribe to all three websites, along with a few other streaming services such as Netflix and HBOmax. Throughout my EDA, I extract specific variables such as genre, type, and duration. In order to interpret these variables through metrics andd visual graphics, I had to clean and recode a lot of the variables and inputs. My first two visualizations highlight  the variable type, which has two possible values: "Movie" or "TV Show". If one wanted to be economical and optimize their options, my first visualization depicts the total amount of available titles per service. As shown in my pie chart, AmazonPrime has significantly more options than Hulu and Disney+. However, my most interesting finding was from the variable duration. In order to evaluate "duration", I had to individually parse the duration based on type. Specifically, for type = "Movie", my findings were very surprising.
+
+### Data Sources:
+<https://www.kaggle.com/shivamb/hulu-movies-and-tv-shows/version/1.> <br>
+<https://www.kaggle.com/shivamb/amazon-prime-movies-and-tv-shows> <br>
+<https://www.kaggle.com/shivamb/disney-movies-and-tv-shows> <br>
+
+# Highlight 1:
+Average Movie duration per service in minutes
+```{r, include = FALSE, message=FALSE, warning = FALSE}
+#convert duration to minutes for each service
+
+#hulu movie minutes
+hulu_movie_length <- hulu_summary %>%
+  select(type, duration, title) %>%
+  filter(type == "Movie") %>% #filter by only movies
+  drop_na() %>%
+  #parse duration into an int:
+  mutate(hulu_minutes = parse_number(duration)) #new var hulu_minutes
+
+
+#amazon movie minutes
+amazon_movie_length <- amazon_summary %>%
+  select(type, duration, title) %>%
+  filter(type == "Movie") %>% #filter by only movies
+  mutate(amazon_minutes = parse_number(duration)) #parse duration into an int
+
+#disney movie minutes
+disney_movie_length <- disney_summary %>%
+  select(type, duration, title) %>% 
+  filter(type == "Movie") %>% #only movies
+  drop_na() %>%
+  mutate(disney_minutes = parse_number(duration)) #parse duration into an int
+```
+
+```{r, include = FALSE, message=FALSE, warning = FALSE}
+#calculate the mean duration each of a movie on each in minutes
+
+#hulu average movie length (min)
+mean_hulu_movies <- mean(hulu_movie_length$hulu_minutes)
+
+#amazon average movie length (min)
+mean_amazon_movies <- mean(amazon_movie_length$amazon_minutes)
+
+#disney average movie length (min)
+mean_disney_movies <- mean(disney_movie_length$disney_minutes)
+
+#create joint tibble of the mean_service for all three
+Movie_Averages <- tibble(
+  service = c("Hulu", "Disney+", "Amazon Prime"), 
+  total = c(mean_hulu_movies, mean_disney_movies, mean_amazon_movies)
+  )
+
+Movie_av_plot <- ggplot(
+  data = Movie_Averages, 
+  aes(x = service, y = total)) + 
+  geom_col(fill = c("#5BDC70", "#1EC2F9", "#FC6CB9")) +
+  labs(
+    title = "Average Movie Length",
+    y = "Average Length (min)"
+  ) +
+  theme_minimal() +
+  geom_text(
+    aes(label = round(total)), size = 10, #label each (min) 
+    position = position_stack(vjust = .5) #adjust labels
+  ) 
+```
+
+```{r, warning = FALSE, message = FALSE}
+Movie_av_plot
+```
+
+<br>
+**In this bar chart, I highlight the average (mean) duration of movies in minutes. I find it super interesting that movies on Disney+ are on average significantly shorter than on Hulu and AmazonPrime. Movies on Disney+ average at 1 hour and 13 minutes which is pretty short for a movie. AmazonPrime and Hulu have similar movie length averages of 91 and 98 respectively, which is about 1.5 hours. 1 hour and a half is what I predicted the average movie length would be. I guess it makes sense that Disney+ is mostly family / animated movies which tend to be shorter than dramas and horror films ..etc**
+<br>
+
+# Highlight 2: Longest running TV Shows per service
+TV Shows with the most seasons on Hulu, Disney+, and AmazonPrime
+```{r, include = FALSE, message=FALSE, warning = FALSE}
+# extract type = TV Show
+# extract number from "2 Seasons"
+# arrange descending, select top 10
+
+##hulu tv seasons
+hulu_seasons <- read_csv("data/processed/hulu_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int; use extract_numeric() function
+  arrange(desc(duration)) %>% ## arrange high -> low
+  head(10) %>% ## return highest 10
+  
+  ggplot() +
+  geom_col(fill = "lightgreen", color = "black",
+    aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Hulu: Most TV Seasons",
+    x = "Amount of Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+
+##disney TV Show seasons
+disney_seasons <- read_csv("data/processed/disney_plus_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int
+  arrange(desc(duration)) %>%
+  head(10) %>%
+  
+  ggplot() +
+  geom_col(fill = "lightblue", color = "black",
+    aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Longest Running TV Shows",
+    x = "Disney+: Most TV Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+
+
+##amazon tv seasons
+amazon_seasons <- read_csv("data/processed/amazon_prime_titles.csv") %>%
+  filter(type == "TV Show") %>%
+  select(title, duration) %>%
+  mutate(duration = extract_numeric(duration)) %>% ##parse duration = "# Season" -> int
+  arrange(desc(duration)) %>%
+  head(10) 
+  
+amazon_seasons_plot <- ggplot(amazon_seasons) +
+  geom_col(fill = "lightpink", color = "black",
+           aes(y = reorder(title, duration), x = duration)) +
+  labs(
+    title = "Amazon: Most TV Seasons",
+    x = "Amount of Seasons",
+    y = "TV Show"
+  ) +
+  geom_label(aes(y = reorder(title, duration), x = duration, label = duration), size = 2.2) +
+  theme_minimal()
+```
+
+```{r, message=FALSE, warning = FALSE}
+hulu_seasons
+amazon_seasons_plot
+```
+
+<br>
+**In these two bar charts, I calculated the 10 shows with the most seasons on Hulu and AmazonPrime. What I love about this plot is that I unintentially extracted TV Shows that are available on both services. As you can see above, both Hulu and AmazonPrime have the TV Shows "Survivor" and "America's Next Top Model", which both have a ton of seasons. However, they have each have a different amount of seasons available. "Survivor" has 34 seasons on Hulu and 19 seasons on AmazonPrime. In my fourth Visualization, I found how many overlapping titles the services have which each other, i.e. titles available on both. However, I returned the number n = total overlap and not the specific titles. So this visualization helped highlight a few of the titles available on Hulu and AmazonPrime**
+<br>
+
+# Conclusion:
+I learned that AmazonPrime, Hulu, and Disney+ are far more different than I had expected. I did not expect AmazonPrime to have so many more titles than Hulu and Disney+. AmazonPrime has over 9000 titles, while Hulu and Disney+ have about 3000 and 1500 respectively. Additionally, I did not expect the distribution of Movies vs TV Shows to be so uneven on each service. The percentage of Movies on AmazonPrime and Disney+ are both over 70%. However, Hulu is almost 50/50 Movies and TV Shows. In conclusion, if you are looking to be economical and subscribe to only 1 service, AmazonPrime has by far the most options. However, if you are specifically interested in watching TV Shows over Movies, I would recommend subscribing to Hulu.
